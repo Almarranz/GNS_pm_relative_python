@@ -79,7 +79,7 @@ max_sig = 0.5#TODO
 max_sep = 0.05 * u.arcsec
 sig_cl = 1#!!!
 deg = 1#!!!
-max_deg = 4
+max_deg = 5
 d_m = 0.5#!!!
 # %%
 # 'ra1 0, dec1 1, x1 2, y1 3, f1 4, H1 5, dx1 6, dy1 7, df1 8, dH1 9 ,Ks 10, dKs 11 ID1 12'
@@ -125,6 +125,7 @@ loop = 0
 comom_ls = []
 dic_xy = {}
 dic_Kx ={}
+dic_xy_final = {}
 
 # xy_1c = np.array((gns1_match['x1'], gns1_match['y1'])).T
 # xy_2c = np.array((gns2_match['x2'], gns2_match['y2'])).T
@@ -168,16 +169,19 @@ while deg < max_deg:
             try:
                 gns1['x1'] = dic_xy[f'trans_{loop-2}'][:,0]
                 gns1['y1'] = dic_xy[f'trans_{loop-2}'][:,1]
+                dic_xy_final['xy_deg%s'%(deg)] = np.array([dic_xy[f'trans_{loop-2}'][:,0],dic_xy[f'trans_{loop-2}'][:,1]]).T            
+                comom_ls =[]
+                dic_xy = {}
+                dic_Kx = {}
+                deg += 1
+                print(f'Number of common star in loop {loop-1} lower tha in loop {loop-2}.\nJupping to degree {deg} ')
+                loop = -1
+                continue
             except:
-                print(f'Degree {deg} MAAAAALLL ')
+                gns1['x1'] = dic_xy_final['xy_deg2'][:,0]
+                gns1['y1'] = dic_xy_final['xy_deg2'][:,1]
+                print(f'Number of common star with polynomial degere {deg} decreases after a single iteration.\nUsing the last iteration of degree {deg -1} ')
                 break
-            comom_ls =[]
-            dic_xy = {}
-            dic_Kx = {}
-            deg += 1
-            print(f'Number of common star in loop {loop-1} lower tha in loop {loop-2}.\nJupping to degree {deg} ')
-            loop = -1
-            continue
             
     comom_ls.append(len(comp))
     print(f'Common in loop {loop}, degree {deg} = %s'%(len(comp['ind_1'])))
@@ -234,7 +238,7 @@ while deg < max_deg:
                     xi=xi+Kx[k,m]*gns1['x1']**k*gns1['y1']**m
                     yi=yi+Ky[k,m]*gns1['x1']**k*gns1['y1']**m
     dic_xy[f'trans_{loop+1}'] = np.array([xi,yi]).T
-    dic_Kx[f'Kx_{loop+1}'] = Kx[0][0]
+    
     # print(Kx[0][0])
     gns1['x1'] = xi
     gns1['y1'] = yi
