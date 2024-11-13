@@ -2,13 +2,14 @@
 
 ## Obtaining Relative Proper Motions from GNS1 and GNS2 Using GNS2 as the Reference Frame
 
-Proper motions calculated from GNS1 and GNS2 data.
+This process calculates proper motions using data from GNS1 and GNS2.
 
 0. **`gns1_B_lists.py`**  
-   Combines the H and Ks lists for the new reduction.
-   
+   - Combines the H and Ks lists for GNS2.
+
 1. **`GNS1_GNS2_alignment.py`**
-   - Perferm the alignment between GNS1 and GNS2 with an afine transformation frisr and the with a polynomial, using a python version of polywarp and compute the proper motions
-   
+   - Performs alignment between GNS1 and GNS2 with an affine transformation first, followed by a polynomial transformation.
+   - Uses a Python version of `polywarp` to compute proper motions.
+
 2. **`gns_pm_comparison.py`**   
-   - Comapares the pm with those of Gaia and Hosek.
+   - Compares the proper motions with those from Gaia and Hosek.
