@@ -29,7 +29,9 @@ import cluster_finder
 import pandas as pd
 import copy
 import cluster_finder
-from gaia_filters import filter_gaia_data
+from filters import filter_gaia_data
+from filters import filter_hosek_data
+from filters import filter_gns_data
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -56,7 +58,7 @@ plt.rcParams["mathtext.fontset"] = 'dejavuserif'
 rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib pop up because so many plots, this turining it of
 
-field_one, chip_one, field_two, chip_two,t1,t2 = np.loadtxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt', 
+field_one, chip_one, field_two, chip_two,t1,t2,max_sig = np.loadtxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt', 
                                                        unpack=True)
 # field_one = field_one.astype(int)
 # chip_one = chip_one.astype(int)
@@ -67,13 +69,16 @@ field_one = 7
 chip_one = 4
 field_two = 7
 chip_two = 1
-
+max_sig = 0.5#TODO
 
 
 
 
 GNS_1relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/%s/chip%s/'%(field_one, chip_one)
 GNS_2relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_python/lists/%s/chip%s/'%(field_two, chip_two)
+pm_folder = '/Users/amartinez/Desktop/PhD/HAWK/pm_gns1_gns2_relative_python/'
+
+
 
 pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative/pruebas/'
 pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative/pruebas/'
@@ -85,7 +90,7 @@ indices = np.arange(0,len(strin),1)
 # center_only = 'yes'#TODO yes, eliminates foregroud, no, keep them
 center_only = 'no'
 pix_scale = 0.1064*0.53
-max_sig = 0.5#TODO
+
 max_sep = 0.05 * u.arcsec
 sig_cl = 1#!!!
 deg = 1#!!!
@@ -288,6 +293,8 @@ ax1.legend()
 ax.set_xlabel('$\mu_x$[mas/yr]')
 ax1.set_xlabel('$\mu_y$[mas/yr]')
 
+gns1_pm.write(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii')
+
 # %%
 # =============================================================================
 # knn = 25
@@ -325,30 +332,16 @@ gaia_ = j.get_results()
 e_pm = 0.3
 gaia_good = filter_gaia_data(
     gaia_table=gaia_,
-    astrometric_params_solved=31,
-    duplicated_source= False,
-    parallax_over_error_min=-10,
-    astrometric_excess_noise_sig_max=2,
-    phot_g_mean_mag_min= 13,
-    phot_g_mean_mag_max= None,
-    pm_min=0,
-    pmra_error_max=e_pm,
-    pmdec_error_max=e_pm
-)
-
-# e_pm = 0.1
-# # WARNING: np.where was giving me porblems when I set many conditions in one go.
-# selec1 = np.where((gaia_['astrometric_params_solved']==31)&(gaia_['duplicated_source'] ==False))
-# gaia_good1 = gaia_[selec1]
-# selec2 = np.where((gaia_good1['parallax_over_error']>=-10)&(gaia_good1['astrometric_excess_noise_sig']<=2))
-# gaia_good2 = gaia_good1[selec2]
-# selec3 = np.where((gaia_good2['phot_g_mean_mag']>13)&(gaia_good2['pm']>0))
-# gaia_good3 = gaia_good2[selec3]
-# selec4 = np.where((gaia_good3['pmra_error']<e_pm)&(gaia_good3['pmdec_error']<e_pm))   
-# gaia_good4 = gaia_good3[selec4] 
-# gaia_good = gaia_good4
-
-# gaia_good = gaia_
+    # astrometric_params_solved=31,
+    # duplicated_source= False,
+    # parallax_over_error_min=-10,
+    # astrometric_excess_noise_sig_max=2,
+    # phot_g_mean_mag_min= 17,
+    # phot_g_mean_mag_max= None,
+    # pm_min=0,
+    # pmra_error_max=e_pm,
+    # pmdec_error_max=e_pm
+    )
 
 gaia_gal = SkyCoord(ra=gaia_good['ra'], dec=gaia_good['dec'],
                         pm_ra_cosdec =gaia_good['pmra'], pm_dec = gaia_good['pmdec'],
@@ -364,6 +357,9 @@ ax.scatter(gns1_pm['ra1'],gns1_pm['Dec1'])
 ax.scatter(gaia_['ra'],gaia_['dec'])
 ax.scatter(gaia_good['ra'],gaia_good['dec'])
 
+# center = (gns1_pm['H1'] - gns1_pm['Ks1'] > 1.3)
+# gns1_pm = gns1_pm[center]
+
 
 gns1_coor = SkyCoord(ra = gns1_pm['ra1'],dec = gns1_pm['Dec1'],unit = 'degree',
                      frame = 'fk5', obstime = 'J2015.4301')
@@ -371,6 +367,8 @@ gaia_coord = SkyCoord(ra=gaia_good['ra'], dec=gaia_good['dec'],unit = 'degree',
                      frame = 'icrs', obstime = 'J2016.0')
 
 max_sep = 0.08*u.arcsec
+
+
 
 idx,d2d,d3d = gaia_coord.match_to_catalog_sky(gns1_coor,nthneighbor=1)# ,nthneighbor=1 is for 1-to-1 matchsep_constraint = d2d < max_sep
 sep_constraint = d2d < max_sep
@@ -429,9 +427,26 @@ DEC = RA_DEC.dec
 arches.add_column(RA,name = 'RA',index = 0)
 arches.add_column(DEC,name = 'DEC',index = 1)
 
+e_pm= 0.3
 
+arches = filter_hosek_data(arches,
+                      max_e_pos = None,
+                      max_e_pm = e_pm,
+                       min_mag = 20,
+                       max_mag = 10,
+                      max_Pclust = 0.00001,
+                      # center = 'yes'
+                      ) 
+# pm_l = (arches['e_pmRA']<e_pm) &(arches['e_pmDE']<e_pm)
+# arches = arches[pm_l]
 # fig,ax = plt.subplots(1,1)
 # ax.hist(arches['t0'],bins ='auto')
+
+gns1_pm = filter_gns_data(gns1_pm, 
+                          # center = 'yes',
+                           # min_mag = 18,
+                           # max_mag = 10
+                          )
 
 arches['Jt0'] = [ 'J%s'%(arches['t0'][j]) for j in range(len((arches['t0'])))]
 
@@ -445,10 +460,7 @@ arches['b'] = arches_gal.b
 arches['pml'] = arches_gal.pm_l_cosb
 arches['pmb'] = arches_gal.pm_b
 
-mag_lim = (gns1_pm['H1'] >12) & (gns1_pm['H1'] <14)
 
-
-gns1_pm = gns1_pm[mag_lim]
 gns1_coor = SkyCoord(ra = gns1_pm['ra1'],dec = gns1_pm['Dec1'],unit = 'degree',
                      frame = 'fk5', obstime = 'J2015.4301')
 # %
@@ -458,13 +470,11 @@ ax.scatter(gns1_pm['ra1'], gns1_pm['Dec1'], alpha = 0.1)
 
 arches_coord = SkyCoord(ra = arches['RA'], dec = arches['DEC'], unit = 'degree',
                         frame = 'icrs', obstime=arches['Jt0'].value)
-max_sep = 0.05*u.arcsec
+max_sep = 0.01*u.arcsec
 
 idx,d2d,d3d = arches_coord.match_to_catalog_sky(gns1_coor,nthneighbor=1)# ,nthneighbor=1 is for 1-to-1 matchsep_constraint = d2d < max_sep
 sep_constraint = d2d < max_sep
-gns_hos = gns1[l_12['ind_1']][idx[sep_constraint]]
-pm_x_hos = pm_x[idx[sep_constraint]]
-pm_y_hos = pm_y[idx[sep_constraint]]
+gns_hos = gns1_pm[idx[sep_constraint]]
 arches_match = arches[sep_constraint]
 
 # %
@@ -472,8 +482,10 @@ fig, ax = plt.subplots(1,1)
 ax.scatter(gns_hos['ra1'],gns_hos['Dec1'])
 ax.scatter(arches_match['RA'],arches_match['DEC'],s =1)
 # %
-diff_pmx = pm_x_hos + arches_match['pml']
-diff_pmy = pm_y_hos - arches_match['pmb']
+diff_pmx = gns_hos['pmx'] + arches_match['pml']
+diff_pmy = gns_hos['pmy'] - arches_match['pmb']
+# diff_pmx = gns_hos['pmx'] + arches_match['pmRA']
+# diff_pmy = gns_hos['pmy']  - arches_match['pmDE']
 
 mask_pmx, l_lim,h_lim = sigma_clip(diff_pmx, sigma=3, masked = True, return_bounds= True)
 mask_pmy, l_lim,h_lim = sigma_clip(diff_pmy, sigma=3, masked = True, return_bounds= True)
@@ -482,7 +494,7 @@ diff_pmy_clip = diff_pmy[~mask_pmy.mask]
 
 # %
 fig, (ax,ax1) = plt.subplots(1,2)
-ax.set_title('Matching = %s'%(len(pm_x_hos)))
+ax.set_title('Matching = %s'%(len(gns_hos['pmx'])))
 ax.hist(diff_pmx_clip, histtype = 'step', label = '$\overline{\Delta x}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmx_clip),np.nanstd(diff_pmx_clip)))
 ax.hist(diff_pmx, histtype = 'step', color ='k', alpha = 0.3)
 

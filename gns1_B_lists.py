@@ -51,10 +51,10 @@ rc('font',**{'family':'serif','serif':['Palatino']})
 plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib pop up because so many plots, this turining it of
 # %%
 #%%
-field_one = 7
-chip_one = 4
-field_two = 7
-chip_two = 1
+# field_one = 7
+# chip_one = 4
+# field_two = 7
+# chip_two = 1
 
 # field_one = 10
 # chip_one = 2
@@ -62,28 +62,31 @@ chip_two = 1
 # chip_two = 3
 
 
-# field_one = 16
-# chip_one = 2
-# field_two = 7
-# chip_two = 1
+field_one = 16
+chip_one = 2
+field_two = 7
+chip_two = 1
+max_sig = 0.5
+# max_sig = 2
 
 red_pers = 'RS'
 # red_pers = 'AL'
 if field_one == 7 or field_one == 12 or field_one == 10 or field_one == 16:
     t1 = Time(['2015-06-07T00:00:00'],scale='utc')
-
+else:
+    print(f'NO time detected for this field_one = {field_one}')
+    sys.exit()
 if field_two == 7 or field_two == 5:
     t2 = Time(['2022-05-27T00:00:00'],scale='utc')
-if field_two == 4:
+elif field_two == 4:
     t2 = Time(['2022-04-05T00:00:00'],scale='utc')
-    
+else:
+    print(f'NO time detected for this field_two = {field_two}')
+    sys.exit()
 
 
 
-np.savetxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1/lists/fields_and_chips.txt',
-           np.array([field_one, chip_one, field_two, chip_two,t1.decimalyear[0],t2.decimalyear[0]]).reshape(1, -1), fmt = 4*'%.0f ' +2*'%.4f ')
 
-sys.exit()
 # Arches and Quintuplet coordinates for plotting and check if it will be covered.
 # Choose Arches or Quituplet central coordinates #!!!
 # arch = SkyCoord(ra = '17h45m50.65020s', dec = '-28d49m19.51468s', equinox = 'J2000').galactic
@@ -109,11 +112,16 @@ if field_two == '5':
         GNS_2='/Users/amartinez/Desktop/PhD/HAWK/GNS_2/lists/%s_AL/chip%s/'%(field_two, chip_two)
 
 
-GNS_2relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative/lists/%s/chip%s/'%(field_two, chip_two)
-GNS_1relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative/lists/%s/chip%s/'%(field_one, chip_one)
+GNS_2relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_python/lists/%s/chip%s/'%(field_two, chip_two)
+GNS_1relative = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/%s/chip%s/'%(field_one, chip_one)
 
-pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative/pruebas/'
-pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative/pruebas/'
+np.savetxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt',
+           np.array([field_one, chip_one, field_two, chip_two,t1.decimalyear[0],t2.decimalyear[0],max_sig]).reshape(1, -1), fmt = 4*'%.0f ' +3*'%.4f ')
+
+
+
+pruebas1 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_relative/pruebas/'
+pruebas2 = '/Users/amartinez/Desktop/PhD/HAWK/GNS_2relative_relative/pruebas/'
 
 # 0     1    2   3   4   5   6    7    8    9   
 # ra1, dec1, x1, y1, f1, H1, dx1, dy1, df1, dH1 = np.loadtxt(GNS + 'stars_calibrated_H_chip1.txt', unpack = True)
@@ -140,8 +148,7 @@ gns1H_match['Ks1'] = gns1K_match['Ks1']
 gns1H_match['dKs1'] = gns1K_match['dKs1']
 
 gns1_all = gns1H_match
-max_sig = 0.5
-# max_sig = 2
+
 # unc_cut = np.where(np.sqrt(gns1_all[:,1]**2 + gns1_all[:,3]**2)<max_sig)
 unc_cut = np.where((gns1_all['dx1']<max_sig) & (gns1_all['dy1']<max_sig))
 gns1 = gns1_all[unc_cut]

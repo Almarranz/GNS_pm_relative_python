@@ -9,4 +9,6 @@ Proper motions calculated from GNS1 and GNS2 data.
    
 1. **`GNS1_GNS2_alignment.py`**
    - Perferm the alignment between GNS1 and GNS2 with an afine transformation frisr and the with a polynomial, using a python version of polywarp and compute the proper motions
+   
+2. **`gns_pm_comparison.py`**   
    - Comapares the pm with those of Gaia and Hosek.
