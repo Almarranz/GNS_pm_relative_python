@@ -33,6 +33,7 @@ import cluster_finder
 from filters import filter_gaia_data
 from filters import filter_hosek_data
 from filters import filter_gns_data
+from filters import filter_vvv_data
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -162,14 +163,18 @@ print(np.mean(diff_pmy),np.std(diff_pmy))
     # sep_constraint = d2d < max_sep
     # hose_match = arches[idx[sep_constraint]]
     # gaia_match_hos = gaia_good[sep_constraint]
-
+# %%
 fig, (ax,ax1) = plt.subplots(1,2)
 ax.set_title('Matching = %s'%(len(gns_match['pmx'])))
+ax1.set_title('GAIA comparison')
 ax.hist(diff_pmx_clip, histtype = 'step', label = '$\overline{\Delta x}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmx_clip),np.nanstd(diff_pmx_clip)))
 ax.hist(diff_pmx, histtype = 'step', color ='k', alpha = 0.3)
 
-ax1.hist(diff_pmy_clip, histtype = 'step',color = 'orange', label = '$\overline{\Delta x}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmy_clip),np.nanstd(diff_pmy_clip)))
+ax1.hist(diff_pmy_clip, histtype = 'step',color = 'orange', label = '$\overline{\Delta y}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmy_clip),np.nanstd(diff_pmy_clip)))
 ax1.hist(diff_pmy, histtype = 'step',color = 'k', alpha = 0.3, ls = 'dashed')
+
+ax.set_xlabel('$\Delta \mu_{\parallel}$')
+ax1.set_xlabel('$\Delta \mu_{\perp}$')
 ax.legend()
 ax1.legend()
 
@@ -261,6 +266,7 @@ diff_pmy_clip = diff_pmy[~mask_pmy.mask]
 # %
 fig, (ax,ax1) = plt.subplots(1,2)
 ax.set_title('Matching = %s'%(len(gns_hos['pmx'])))
+ax1.set_title('HOSEK comparison')
 ax.hist(diff_pmx_clip, histtype = 'step', label = '$\overline{\Delta x}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmx_clip),np.nanstd(diff_pmx_clip)))
 ax.hist(diff_pmx, histtype = 'step', color ='k', alpha = 0.3)
 
@@ -268,6 +274,124 @@ ax1.hist(diff_pmy_clip, histtype = 'step',color = 'orange', label = '$\overline{
 ax1.hist(diff_pmy, histtype = 'step',color = 'k', alpha = 0.3, ls = 'dashed')
 ax.legend()
 ax1.legend()
+ax.set_xlabel('$\Delta \mu_{\parallel}$')
+ax1.set_xlabel('$\Delta \mu_{\perp}$')
+
+
+# %%
+# Comparison with VVV 
+
+VVV = Table.read('/Users/amartinez/Desktop/PhD/Catalogs/VVV/b333/PMS/b333.dat', format = 'ascii')
+# %%
+rad = 50/3600
+
+delta_ra = (VVV['ra'] - ra_c) * np.cos(np.radians(dec_c))
+delta_dec = VVV['dec'] - dec_c
+
+# Calculate the angular distance
+angular_distance = np.sqrt(delta_ra**2 + delta_dec**2)
+
+# Select rows where the distance is within the radius
+within_radius = angular_distance <= rad
+
+vvv_c = VVV[within_radius]
+
+vvv_c = filter_vvv_data(vvv_c,
+                    pmRA = 'good',
+                    pmDE = None,
+                    epm = 1.5,
+                    ok = 'yes',
+                    max_Ks = 14,
+                    min_Ks = 16,
+                    center = None
+                    )
+
+
+
+fig, ax = plt.subplots(1,1)
+ax.scatter(vvv_c['ra'],vvv_c['dec'])
+ax.scatter(gns1_pm['ra1'], gns1_pm['Dec1'], alpha = 0.1)
+
+# Moves coordinates to GNS1 obstime???
+tvvv = 2012.29578304
+# vvv_c['ra'] = vvv_c['ra'] + (t1-tvvv) * (vvv_c['pmRA']/1000.0)/3600.0 * np.cos(vvv_c['dec']*np.pi/180.)
+# vvv_c['dec'] = vvv_c['dec'] + (t1-tvvv) * (vvv_c['pmDEC']/1000.0)/3600.0
+vvv_coord = SkyCoord(ra = vvv_c['ra'], dec = vvv_c['dec'], unit = 'degree',
+                      frame = 'icrs', obstime = 'J2012.29578304')
+# vvv_coord = SkyCoord(ra = vvv_c['ra'], dec = vvv_c['dec'], unit = 'degree',
+#                      frame = 'icrs', obstime = 'J2015.4301')
+
+
+max_sep = 0.02*u.arcsec
+
+idx,d2d,d3d = vvv_coord.match_to_catalog_sky(gns1_coor,nthneighbor=1)# ,nthneighbor=1 is for 1-to-1 matchsep_constraint = d2d < max_sep
+sep_constraint = d2d < max_sep
+gns_vvv = gns1_pm[idx[sep_constraint]]
+vvv_match = vvv_c[sep_constraint]
+
+
+
+sig_cl = 2
+dKs = gns_vvv['Ks1']-vvv_match['Ks']
+mask_m, l_lim,h_lim = sigma_clip(dKs, sigma=sig_cl, masked = True, return_bounds= True)
+
+
+fig, (ax, ax1) = plt.subplots(1,2)
+ax.scatter(gns_vvv['ra1'],gns_vvv['Dec1'])
+ax.scatter(vvv_match['ra'],vvv_match['dec'],s =1)
+ax.set_title('Macthes = %s'%(len(vvv_match)))
+ax1.hist(dKs,bins = 'auto', label = '$\Delta$Ks = %.2f\n$\sigma$ = %.2f'%(np.mean(dKs),np.std(dKs)))
+ax1.axvline(l_lim, ls = 'dashed', color = 'r', label = '$\pm$ %s$\sigma$'%(sig_cl))
+ax1.axvline(h_lim, ls = 'dashed', color = 'r')
+ax1.legend(loc = 4, fontsize = 12)
+
+vvv_match = vvv_match[~mask_m.mask]
+gns_vvv = gns_vvv[~mask_m.mask]
+ax1.set_title(f'{sig_cl}$\sigma$ Macthes= %s'%(len(vvv_match)))
+
+
+vvv_gal = SkyCoord(ra = vvv_match['ra'], dec = vvv_match['dec'], unit = 'degree',
+                   pm_ra_cosdec = vvv_match['pmRA']*u.mas/u.yr, pm_dec = vvv_match['pmDEC']*u.mas/u.yr, 
+                      frame = 'icrs', obstime = 'J2012.29578304').galactic
+
+
+vvv_match['l'] = vvv_gal.l
+vvv_match['b'] = vvv_gal.b
+vvv_match['pml'] = vvv_gal.pm_l_cosb
+vvv_match['pmb'] = vvv_gal.pm_b
+
+
+
+
+diff_pmx = gns_vvv['pmx'] + vvv_match['pml']
+diff_pmy = gns_vvv['pmy'] - vvv_match['pmb']
+
+
+
+mask_pmx, l_lim,h_lim = sigma_clip(diff_pmx, sigma=3, masked = True, return_bounds= True)
+mask_pmy, l_lim,h_lim = sigma_clip(diff_pmy, sigma=3, masked = True, return_bounds= True)
+diff_pmx_clip = diff_pmx[~mask_pmx.mask]
+diff_pmy_clip = diff_pmy[~mask_pmy.mask]
+
+# %
+fig, (ax,ax1) = plt.subplots(1,2)
+ax.set_title('Matching = %s'%(len(gns_vvv['pmx'])))
+ax1.set_title('VVV comparison')
+ax.hist(diff_pmx_clip, histtype = 'step', label = '$\overline{\Delta x}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmx_clip),np.nanstd(diff_pmx_clip)))
+ax.hist(diff_pmx, histtype = 'step', color ='k', alpha = 0.3)
+
+ax1.hist(diff_pmy_clip, histtype = 'step',color = 'orange', label = '$\overline{\Delta x}$ =%.2f\n$\sigma$ = %.2f '%(np.nanmean(diff_pmy_clip),np.nanstd(diff_pmy_clip)))
+ax1.hist(diff_pmy, histtype = 'step',color = 'k', alpha = 0.3, ls = 'dashed')
+ax.legend()
+ax1.legend()
+ax.set_xlabel('$\Delta \mu_{\parallel}$')
+ax1.set_xlabel('$\Delta \mu_{\perp}$')
+
+
+
+
+
+
 
 
 

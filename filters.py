@@ -4,7 +4,12 @@
 Created on Tue Nov 12 11:13:35 2024
 
 @author: amartinez
+Filter astropy Table data based on provided criteria.
+
+Returns:
+- Filtered Astropy Table.
 """
+
 
 # gaia_filters.py
 
@@ -20,23 +25,7 @@ def filter_gaia_data(gaia_table,
                      pm_min=None, 
                      pmra_error_max=None, 
                      pmdec_error_max=None):
-    """
-    Filter Gaia data based on provided criteria.
-
-    Parameters:
-    - gaia_table: Astropy Table, the original Gaia data table.
-    - astrometric_params_solved: int, filters by 'astrometric_params_solved' column.
-    - duplicated_source: bool, filters by 'duplicated_source' column.
-    - parallax_over_error_min: float, minimum threshold for 'parallax_over_error' column.
-    - astrometric_excess_noise_sig_max: float, maximum threshold for 'astrometric_excess_noise_sig' column.
-    - phot_g_mean_mag_min: float, minimum threshold for 'phot_g_mean_mag' column.
-    - pm_min: float, minimum threshold for 'pm' column.
-    - pmra_error_max: float, maximum threshold for 'pmra_error' column.
-    - pmdec_error_max: float, maximum threshold for 'pmdec_error' column.
     
-    Returns:
-    - Filtered Astropy Table based on specified criteria.
-    """
     mask = np.ones(len(gaia_table), dtype=bool)
     print('pmra_error_max',pmra_error_max)
     if astrometric_params_solved is not None:
@@ -124,7 +113,40 @@ def filter_gns_data(gns_table,
         mask &= (gns_table['H1'] - gns_table['Ks1'] > 1.3)
 
     return gns_table[mask]
-    
+
+def filter_vvv_data(vvv_table,
+                    pmRA = None,
+                    pmDE = None,
+                    epm = None,
+                    ok = None,
+                    max_Ks = None,
+                    min_Ks = None,
+                    J = None,
+                    center = None
+                    ):
+    mask = np.ones(len(vvv_table), dtype = bool)
+        
+    if center is not None:
+        mask &= (vvv_table['J'] - vvv_table['Ks1'] > 2)
+        
+    if pmRA is not None:
+        mask &= (vvv_table['pmRA'] < 900)
+        
+    if max_Ks is not None:
+        mask &= (vvv_table['Ks'] > max_Ks)
+        
+    if min_Ks is not None:
+        mask &= (vvv_table['Ks'] < min_Ks)
+        
+    if epm is not None:
+        mask &= (vvv_table['epmRA'] <epm) & (vvv_table['epmDEC'] <epm)
+        
+    if ok is not None:
+        mask &= (vvv_table['ok'] != 0)
+        
+        
+    return vvv_table[mask]
+
     
     
     
