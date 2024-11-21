@@ -32,6 +32,7 @@ import cluster_finder
 from filters import filter_gaia_data
 from filters import filter_hosek_data
 from filters import filter_gns_data
+import astroalign as aa
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -60,16 +61,16 @@ plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib 
 
 field_one, chip_one, field_two, chip_two,t1,t2,max_sig = np.loadtxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt', 
                                                        unpack=True)
-# field_one = field_one.astype(int)
-# chip_one = chip_one.astype(int)
-# field_two = field_two.astype(int)
-# chip_two = chip_two.astype(int)
+field_one = field_one.astype(int)
+chip_one = chip_one.astype(int)
+field_two = field_two.astype(int)
+chip_two = chip_two.astype(int)
 
-field_one = 7
-chip_one = 4
-field_two = 7
-chip_two = 1
-max_sig = 0.5#TODO
+# field_one = 7
+# chip_one = 4
+# field_two = 7
+# chip_two = 1
+# max_sig = 0.5#TODO
 
 
 
@@ -92,7 +93,7 @@ center_only = 'no'
 pix_scale = 0.1064*0.53
 
 max_sep = 0.05 * u.arcsec
-sig_cl = 1#!!!
+sig_cl = 3#!!!
 deg = 1#!!!
 max_deg = 3
 d_m = 0.5#!!! max distance for the fine alignment betwenn GNS1 and 2
@@ -160,6 +161,9 @@ p = ski.transform.estimate_transform('similarity',
 
 gns1_xy = np.array((gns1['x1'],gns1['y1'])).T
 gns1_xyt = p(gns1_xy)
+
+similarity_list = compare_lists(gns1_xyt, np.array([gns2['x2'],gns2['y2']]).T, d_m)
+
 # %%
 fig, ax = plt.subplots(1,1)
 ax.scatter(gns2['x2'],gns2['y2'],s=10, color = 'k', alpha = 0.1,label = 'GNS2')
@@ -223,23 +227,21 @@ while deg < max_deg:
     l1_clip = l1_com[~mask_m.mask]
     l2_clip = l2_com[~mask_m.mask]
     
-# =============================================================================
-#     fig, (ax,ax1) = plt.subplots(1,2)
-#     fig.suptitle(f'Degree = {deg}. Loop = {loop}')
-#     ax.set_xlabel('$\Delta$ H')
-#     ax.hist(diff_mag, label = 'matches = %s\ndist = %.2f arcsec'%(len(comp['ind_1']), d_m*pix_scale))
-#     ax.axvline(l_lim, color = 'red', ls = 'dashed', label = '$\pm$%s$\sigma$'%(sig_cl))
-#     ax.axvline(h_lim, color = 'red', ls = 'dashed')
-#     ax.legend()
-#     
-#     ax1.hist(diff_x, label = '$\overline{\Delta x} = %.2f\pm%.2f$'%(np.mean(diff_x),np.std(diff_x)), histtype = 'step')
-#     ax1.hist(diff_y, label = '$\overline{\Delta y} = %.2f\pm%.2f$'%(np.mean(diff_y),np.std(diff_y)), histtype = 'step')
-# 
-#     ax1.set_xlabel('$\Delta$ pixel')
-#     ax1.legend()
-#     
-#     
-# =============================================================================
+    fig, (ax,ax1) = plt.subplots(1,2)
+    fig.suptitle(f'Degree = {deg}. Loop = {loop}')
+    ax.set_xlabel('$\Delta$ H')
+    ax.hist(diff_mag, label = 'matches = %s\ndist = %.2f arcsec'%(len(comp['ind_1']), d_m*pix_scale))
+    ax.axvline(l_lim, color = 'red', ls = 'dashed', label = '$\pm$%s$\sigma$'%(sig_cl))
+    ax.axvline(h_lim, color = 'red', ls = 'dashed')
+    ax.legend()
+    
+    ax1.hist(diff_x, label = '$\overline{\Delta x} = %.2f\pm%.2f$'%(np.mean(diff_x),np.std(diff_x)), histtype = 'step')
+    ax1.hist(diff_y, label = '$\overline{\Delta y} = %.2f\pm%.2f$'%(np.mean(diff_y),np.std(diff_y)), histtype = 'step')
+
+    ax1.set_xlabel('$\Delta$ pixel')
+    ax1.legend()
+    
+    
     
     
     xy_1c = np.array([l1_clip['x1'],l1_clip['y1']]).T
@@ -293,7 +295,7 @@ ax1.legend()
 ax.set_xlabel('$\mu_x$[mas/yr]')
 ax1.set_xlabel('$\mu_y$[mas/yr]')
 
-gns1_pm.write(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii')
+gns1_pm.write(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii', overwrite = True)
 
 # %%
 # =============================================================================
@@ -309,5 +311,46 @@ gns1_pm.write(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chi
 #                               l1_c['H1'],l1_c['Ks1'],
 #                               knn,sim_by,lim)
 # =============================================================================
+# %%
+# Checking th alignment with astroalign
+
+gns1 = Table.read(GNS_1relative + 'stars_calibrated_HK_chip%s_on_gns2_f%sc%s_sxy%s.txt'%(chip_one,field_two,chip_two,max_sig), format = 'ascii')
+gns2 = Table.read(GNS_2relative +'stars_calibrated_H_chip%s_on_gns1_f%sc%s_sxy%s.txt'%(chip_two,field_one,chip_one,max_sig), format = 'ascii')
+
+
+if center_only == 'yes':
+    center = np.where(gns1['H1'] - gns1['Ks1'] > 1.3)
+elif center_only == 'no':
+    center = np.where(gns1['H1'] - gns1['Ks1']  > -1)
+
+gns1_ra_dec = SkyCoord(ra = gns1['ra1'], dec = gns1['Dec1'], unit ='deg', frame = 'fk5',equinox ='J2000',obstime='J2015.43')
+gns2_ra_dec = SkyCoord(ra= gns2['ra2']*u.degree, dec=gns2['Dec2']*u.degree, frame = 'fk5', equinox = 'J2000',obstime='J2022.4')
+# 
+#I cosider a math if the stars are less than 'max_sep' arcsec away 
+# This is for cutting the the overlapping areas of both lists. (Makes astroaling work faster)
+
+idx,d2d,d3d = gns1_ra_dec.match_to_catalog_sky(gns2_ra_dec)# ,nthneighbor=1 is for 1-to-1 match
+sep_constraint = d2d < max_sep
+gns1_match = gns1[sep_constraint]
+gns2_match = gns2[idx[sep_constraint]]
+
+
+
+xy1 = np.array([gns1_match['x1'],gns1_match['y1']]).T
+xy2 = np.array([gns2_match['x2'],gns2_match['y2']]).T
+m,(c1,c2)= aa.find_transform(xy1,xy2,max_control_points=1000)
+
+gns2_xy = np.array((gns2['x2'],gns2['y2'])).T
+gns1_xy = np.array((gns1['x1'],gns1['y1'])).T
+gns1_xyt = m(gns1_xy)
+
+aa_list = compare_lists(gns1_xyt, gns2_xy, d_m)
+
+
+
+
+
+
+
 
 
