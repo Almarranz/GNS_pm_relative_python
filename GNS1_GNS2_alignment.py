@@ -33,6 +33,8 @@ from filters import filter_gaia_data
 from filters import filter_hosek_data
 from filters import filter_gns_data
 import astroalign as aa
+import os
+import glob
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -95,7 +97,7 @@ pix_scale = 0.1064*0.53
 max_sep = 0.05 * u.arcsec
 sig_cl = 3#!!!
 deg = 1#!!!
-max_deg = 3
+max_deg = 4
 d_m = 0.5#!!! max distance for the fine alignment betwenn GNS1 and 2
 d_m_pm = 2#!!! max distance for the proper motions
 # %%
@@ -198,8 +200,8 @@ while deg < max_deg:
                 loop = -1
                 continue
             except:
-                gns1['x1'] = dic_xy_final['xy_deg2'][:,0]
-                gns1['y1'] = dic_xy_final['xy_deg2'][:,1]
+                gns1['x1'] = dic_xy_final[f'xy_deg{deg-1}'][:,0]
+                gns1['y1'] = dic_xy_final[f'xy_deg{deg-1}'][:,1]
                 print(f'Number of common star with polynomial degere {deg} decreases after a single iteration.\nUsing the last iteration of degree {deg -1} ')
                 break
             
@@ -295,6 +297,15 @@ ax1.legend()
 ax.set_xlabel('$\mu_x$[mas/yr]')
 ax1.set_xlabel('$\mu_y$[mas/yr]')
 
+files_to_remove = glob.glob(os.path.join(pm_folder, 'pm_ep1_f*'))
+
+# Remove the files
+for file in files_to_remove:
+    try:
+        os.remove(file)
+        print(f"Removed: {file}")
+    except Exception as e:
+        print(f"Error removing {file}: {e}")
 gns1_pm.write(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii', overwrite = True)
 
 # %%
