@@ -95,11 +95,14 @@ center_only = 'no'
 pix_scale = 0.1064*0.53
 
 max_sep = 0.05 * u.arcsec
-sig_cl = 3#!!!
+sig_cl = 2#!!!
 deg = 1#!!!
 max_deg = 4
-d_m = 0.5#!!! max distance for the fine alignment betwenn GNS1 and 2
+d_m = 1#!!! max distance for the fine alignment betwenn GNS1 and 2
 d_m_pm = 2#!!! max distance for the proper motions
+align_by = 'Polywarp'
+# align_by = '2DPoly'
+
 # %%
 # 'ra1 0, dec1 1, x1 2, y1 3, f1 4, H1 5, dx1 6, dy1 7, df1 8, dH1 9 ,Ks 10, dKs 11 ID1 12'
 # gns1 = np.loadtxt(GNS_1relative + 'stars_calibrated_HK_chip%s_on_gns2_f%sc%s_sxy%s.txt'%(chip_one,field_two,chip_two,max_sig))
@@ -164,7 +167,10 @@ p = ski.transform.estimate_transform('similarity',
 gns1_xy = np.array((gns1['x1'],gns1['y1'])).T
 gns1_xyt = p(gns1_xy)
 
-similarity_list = compare_lists(gns1_xyt, np.array([gns2['x2'],gns2['y2']]).T, d_m)
+s_ls = compare_lists(gns1_xyt, np.array([gns2['x2'],gns2['y2']]).T, d_m)
+
+
+
 
 # %%
 fig, ax = plt.subplots(1,1)
@@ -180,6 +186,8 @@ ax.legend(fontsize = 9)
 gns1['x1'] = gns1_xyt[:,0]
 gns1['y1'] = gns1_xyt[:,1]
 
+gns1.write(pruebas1 + 'gns1_trans.txt', format = 'ascii', overwrite = True)
+gns2.write(pruebas2 + 'gns2_trans.txt', format = 'ascii',overwrite = True)
 
 while deg < max_deg:
     loop += 1 
@@ -203,6 +211,7 @@ while deg < max_deg:
                 gns1['x1'] = dic_xy_final[f'xy_deg{deg-1}'][:,0]
                 gns1['y1'] = dic_xy_final[f'xy_deg{deg-1}'][:,1]
                 print(f'Number of common star with polynomial degere {deg} decreases after a single iteration.\nUsing the last iteration of degree {deg -1} ')
+                deg = deg -1
                 break
             
     comom_ls.append(len(comp))
@@ -213,6 +222,7 @@ while deg < max_deg:
 
     l1_com = gns1[comp['ind_1']]
     l2_com = gns2[comp['ind_2']]
+    
     
     diff_mag = l1_com['H1'] - l2_com['H2'] 
     # diff_mag1 = l1_com['IB230_diff'] - l2_com['IB230_diff'] 
@@ -229,19 +239,19 @@ while deg < max_deg:
     l1_clip = l1_com[~mask_m.mask]
     l2_clip = l2_com[~mask_m.mask]
     
-    fig, (ax,ax1) = plt.subplots(1,2)
-    fig.suptitle(f'Degree = {deg}. Loop = {loop}')
-    ax.set_xlabel('$\Delta$ H')
-    ax.hist(diff_mag, label = 'matches = %s\ndist = %.2f arcsec'%(len(comp['ind_1']), d_m*pix_scale))
-    ax.axvline(l_lim, color = 'red', ls = 'dashed', label = '$\pm$%s$\sigma$'%(sig_cl))
-    ax.axvline(h_lim, color = 'red', ls = 'dashed')
-    ax.legend()
+    # fig, (ax,ax1) = plt.subplots(1,2)
+    # fig.suptitle(f'Degree = {deg}. Loop = {loop}')
+    # ax.set_xlabel('$\Delta$ H')
+    # ax.hist(diff_mag, label = 'matches = %s\ndist = %.2f arcsec'%(len(comp['ind_1']), d_m*pix_scale))
+    # ax.axvline(l_lim, color = 'red', ls = 'dashed', label = '$\pm$%s$\sigma$'%(sig_cl))
+    # ax.axvline(h_lim, color = 'red', ls = 'dashed')
+    # ax.legend()
     
-    ax1.hist(diff_x, label = '$\overline{\Delta x} = %.2f\pm%.2f$'%(np.mean(diff_x),np.std(diff_x)), histtype = 'step')
-    ax1.hist(diff_y, label = '$\overline{\Delta y} = %.2f\pm%.2f$'%(np.mean(diff_y),np.std(diff_y)), histtype = 'step')
+    # ax1.hist(diff_x, label = '$\overline{\Delta x} = %.2f\pm%.2f$'%(np.mean(diff_x),np.std(diff_x)), histtype = 'step')
+    # ax1.hist(diff_y, label = '$\overline{\Delta y} = %.2f\pm%.2f$'%(np.mean(diff_y),np.std(diff_y)), histtype = 'step')
 
-    ax1.set_xlabel('$\Delta$ pixel')
-    ax1.legend()
+    # ax1.set_xlabel('$\Delta$ pixel')
+    # ax1.legend()
     
     
     
@@ -249,16 +259,16 @@ while deg < max_deg:
     xy_1c = np.array([l1_clip['x1'],l1_clip['y1']]).T
     xy_2c = np.array([l2_clip['x2'],l2_clip['y2']]).T
     
-
-    Kx,Ky=pw.polywarp(xy_2c[:,0],xy_2c[:,1],xy_1c[:,0],xy_1c[:,1],degree=deg)
-    
-    xi=np.zeros(len(gns1))
-    yi=np.zeros(len(gns1))
-    
-    for k in range(deg+1):
-                for m in range(deg+1):
-                    xi=xi+Kx[k,m]*gns1['x1']**k*gns1['y1']**m
-                    yi=yi+Ky[k,m]*gns1['x1']**k*gns1['y1']**m
+    if align_by == 'Polywarp':
+        Kx,Ky=pw.polywarp(xy_2c[:,0],xy_2c[:,1],xy_1c[:,0],xy_1c[:,1],degree=deg)
+        
+        xi=np.zeros(len(gns1))
+        yi=np.zeros(len(gns1))
+        
+        for k in range(deg+1):
+                    for m in range(deg+1):
+                        xi=xi+Kx[k,m]*gns1['x1']**k*gns1['y1']**m
+                        yi=yi+Ky[k,m]*gns1['x1']**k*gns1['y1']**m
     dic_xy[f'trans_{loop+1}'] = np.array([xi,yi]).T
     
     # print(Kx[0][0])
@@ -306,8 +316,8 @@ for file in files_to_remove:
         print(f"Removed: {file}")
     except Exception as e:
         print(f"Error removing {file}: {e}")
-gns1_pm.write(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg-1}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii', overwrite = True)
-
+gns1_pm.write(pm_folder + f'pm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}deg{deg}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii', overwrite = True)
+print(30*'_' + f'\npm_ep1_f{field_one:.0f}c{chip_one}_ep2_f{field_two}c{chip_two}deg{deg}_dmax{d_m_pm}_sxy%.1f.txt\n'%(max_sig)+ 30*'_')
 # %%
 # =============================================================================
 # knn = 25
@@ -363,5 +373,11 @@ aa_list = compare_lists(gns1_xyt, gns2_xy, d_m)
 
 
 
-
-
+# %%
+# fig, (ax,ax1) = plt.subplots(1,2)
+# ax.scatter(gns1['Ks1'], gns1['dx1'],s=1)
+# ax1.scatter(gns1['Ks1'], gns1['dy1'],s=1)
+# ax.set_ylim(0,0.5)
+# ax.set_xlim(10,17)
+# ax1.set_ylim(0,0.5)
+# ax.grid()
