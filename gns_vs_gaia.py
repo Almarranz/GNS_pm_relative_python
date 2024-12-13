@@ -75,16 +75,17 @@ chip_two = chip_two.astype(int)
 # chip_two = 1
 max_sig = 0.5#TODO
 
-max_deg = 4
+max_deg = 3
 d_m_pm = 2
 gns1_pm = Table.read(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii')
 
-Ks_lim = [11,14.5]
+# Ks_lim = [12,14.5]
+Ks_lim = [0,99]
 Ks_mask = (gns1_pm['Ks1'] > Ks_lim[0]) & (gns1_pm['Ks1'] < Ks_lim[1])
 gns1_pm = gns1_pm[Ks_mask]
 #Gaia comparison
 
-search_r = 150*u.arcsec
+search_r = 100*u.arcsec
 
 ra_c = np.mean(gns1_pm['ra1'])
 dec_c = np.mean(gns1_pm['Dec1'])
@@ -118,7 +119,7 @@ gaia_good = filter_gaia_data(
     parallax_over_error_min=-10,
     astrometric_excess_noise_sig_max=2,
     phot_g_mean_mag_min= 17,
-    phot_g_mean_mag_max= 10 ,
+    phot_g_mean_mag_max= 13 ,
     pm_min=0,
     pmra_error_max=e_pm,
     pmdec_error_max=e_pm
@@ -138,8 +139,8 @@ ax.scatter(gns1_pm['ra1'],gns1_pm['Dec1'])
 ax.scatter(gaia_['ra'],gaia_['dec'])
 ax.scatter(gaia_good['ra'],gaia_good['dec'])
 
-# center = (gns1_pm['H1'] - gns1_pm['Ks1'] > 1.3)
-# gns1_pm = gns1_pm[center]
+center = (gns1_pm['H1'] - gns1_pm['Ks1'] < 1.3)
+gns1_pm = gns1_pm[center]
 
 
 gns1_coor = SkyCoord(ra = gns1_pm['ra1'],dec = gns1_pm['Dec1'],unit = 'degree',
@@ -147,7 +148,7 @@ gns1_coor = SkyCoord(ra = gns1_pm['ra1'],dec = gns1_pm['Dec1'],unit = 'degree',
 gaia_coord = SkyCoord(ra=gaia_good['ra'], dec=gaia_good['dec'],unit = 'degree',
                      frame = 'icrs', obstime = 'J2016.0')
 
-max_sep = 0.09*u.arcsec
+max_sep = 0.05*u.arcsec
 
 
 
@@ -167,8 +168,11 @@ diff_pmy = gns_match['pmy'] - gaia_match['pmb']
 
 mask_pmx, l_lim,h_lim = sigma_clip(diff_pmx, sigma=3, masked = True, return_bounds= True)
 mask_pmy, l_lim,h_lim = sigma_clip(diff_pmy, sigma=3, masked = True, return_bounds= True)
-diff_pmx_clip = diff_pmx[~mask_pmx.mask]
-diff_pmy_clip = diff_pmy[~mask_pmy.mask]
+
+mask_pmxy = np.logical_and(np.logical_not(mask_pmx.mask), np.logical_not(mask_pmy.mask))
+
+diff_pmx_clip = diff_pmx[mask_pmxy]
+diff_pmy_clip = diff_pmy[mask_pmxy]
 
 print(np.mean(diff_pmx),np.std(diff_pmx))
 print(np.mean(diff_pmy),np.std(diff_pmy))

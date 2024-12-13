@@ -35,6 +35,9 @@ from filters import filter_gns_data
 import astroalign as aa
 import os
 import glob
+from astropy.modeling.models import Polynomial2D
+from astropy.modeling.fitting import LinearLSQFitter
+from astropy.modeling import models, fitting
 # %% 
 # %%plotting parametres
 from matplotlib import rc
@@ -97,11 +100,15 @@ pix_scale = 0.1064*0.53
 max_sep = 0.05 * u.arcsec
 sig_cl = 2#!!!
 deg = 1#!!!
-max_deg = 4
-d_m = 1#!!! max distance for the fine alignment betwenn GNS1 and 2
+max_deg = 3
+d_m = 0.5#!!! max distance for the fine alignment betwenn GNS1 and 2
 d_m_pm = 2#!!! max distance for the proper motions
-align_by = 'Polywarp'
-# align_by = '2DPoly'
+# align_by = 'Polywarp'#!!!
+align_by = '2DPoly'#!!!
+# f_mode = 'W'
+# f_mode = 'WnC'
+# f_mode = 'NW'
+f_mode = 'NWnC'
 
 # %%
 # 'ra1 0, dec1 1, x1 2, y1 3, f1 4, H1 5, dx1 6, dy1 7, df1 8, dH1 9 ,Ks 10, dKs 11 ID1 12'
@@ -269,6 +276,65 @@ while deg < max_deg:
                     for m in range(deg+1):
                         xi=xi+Kx[k,m]*gns1['x1']**k*gns1['y1']**m
                         yi=yi+Ky[k,m]*gns1['x1']**k*gns1['y1']**m
+    elif align_by == '2DPoly':
+        model_x = Polynomial2D(degree=deg)
+        model_y = Polynomial2D(degree=deg)
+        
+        # Linear least-squares fitter
+        fitter = LinearLSQFitter()
+        # fitter = fitting.LMLSQFitter()
+        
+        if f_mode == 'W':
+            #==============
+            # Fit weighted
+            #==============
+            fit_xw = fitter(model_x, xy_1c[:,0],xy_1c[:,1], xy_2c[:,0], weights= 1/np.sqrt(l1_clip['dx1']**2 + l1_clip['dy1']**2))  # Fit x-coordinates
+            fit_yw = fitter(model_y, xy_1c[:,0],xy_1c[:,1],  xy_2c[:,1],weights= 1/np.sqrt(l1_clip['dx1']**2 + l1_clip['dy1']**2)) 
+        
+        elif f_mode == 'NW':
+            #==============
+            # Fit not weighted
+            #==============
+            fit_xw = fitter(model_x, xy_1c[:,0],xy_1c[:,1], xy_2c[:,0])  # Fit x-coordinates
+            fit_yw = fitter(model_y, xy_1c[:,0],xy_1c[:,1],  xy_2c[:,1]) 
+        
+        elif f_mode == 'WnC':
+            #==============
+            #Fit weighted and clipped
+            #==============
+            or_fit = fitting.FittingWithOutlierRemoval(fitter, sigma_clip, niter=3, sigma=3.0)
+            
+            fit_xw, fm_x = or_fit(model_x, xy_1c[:,0],xy_1c[:,1], xy_2c[:,0], weights= 1/np.sqrt(l1_clip['dx1']**2 + l1_clip['dy1']**2))  # Fit x-coordinates
+            fit_yw, fm_y = or_fit(model_y, xy_1c[:,0],xy_1c[:,1],  xy_2c[:,1],weights= 1/np.sqrt(l1_clip['dx1']**2 + l1_clip['dy1']**2)) 
+            
+            fm_xy = np.logical_not(np.logical_and(np.logical_not(fm_x),np.logical_not(fm_y)))
+            
+            fig, ax = plt.subplots(1,1)
+            plt_per = 20
+            ax.set_title(f'Degree = {deg}')
+            ax.scatter(xy_1c[:,0][::plt_per],xy_1c[:,1][::plt_per], label = 'Used (%s%%)'%(plt_per))
+            ax.scatter(xy_1c[:,0][fm_xy],xy_1c[:,1][fm_xy],s =200, label = 'Clipped')
+            ax.legend()
+        elif f_mode == 'NWnC':
+            or_fit = fitting.FittingWithOutlierRemoval(fitter, sigma_clip, niter=3, sigma=3.0)
+            
+            fit_xw, fm_x = or_fit(model_x, xy_1c[:,0],xy_1c[:,1], xy_2c[:,0])  # Fit x-coordinates
+            fit_yw, fm_y = or_fit(model_y, xy_1c[:,0],xy_1c[:,1],  xy_2c[:,1]) 
+            
+            fm_xy = np.logical_not(np.logical_and(np.logical_not(fm_x),np.logical_not(fm_y)))
+            
+            fig, ax = plt.subplots(1,1)
+            plt_per = 20
+            ax.set_title(f'Degree = {deg}')
+            ax.scatter(xy_1c[:,0][::plt_per],xy_1c[:,1][::plt_per], label = 'Used (%s%%)'%(plt_per))
+            ax.scatter(xy_1c[:,0][fm_xy],xy_1c[:,1][fm_xy],s =200, label = 'Clipped')
+            ax.legend()
+            
+        # sys.exit(308)
+        
+        xi = fit_xw(gns1['x1'], gns1['y1'])
+        yi = fit_yw(gns1['x1'], gns1['y1'])# Fit y-coordinates
+        
     dic_xy[f'trans_{loop+1}'] = np.array([xi,yi]).T
     
     # print(Kx[0][0])
@@ -307,6 +373,7 @@ ax1.legend()
 ax.set_xlabel('$\mu_x$[mas/yr]')
 ax1.set_xlabel('$\mu_y$[mas/yr]')
 
+# sys.exit(347)
 files_to_remove = glob.glob(os.path.join(pm_folder, 'pm_ep1_f*'))
 
 # Remove the files
