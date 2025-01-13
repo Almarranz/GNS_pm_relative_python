@@ -64,16 +64,16 @@ pm_folder = '/Users/amartinez/Desktop/PhD/HAWK/pm_gns1_gns2_relative_python/'
 
 field_one, chip_one, field_two, chip_two,t1,t2,max_sig = np.loadtxt('/Users/amartinez/Desktop/PhD/HAWK/GNS_1relative_python/lists/fields_and_chips.txt', 
                                                        unpack=True)
-# field_one = field_one.astype(int)
-# chip_one = chip_one.astype(int)
-# field_two = field_two.astype(int)
-# chip_two = chip_two.astype(int)
+field_one = field_one.astype(int)
+chip_one = chip_one.astype(int)
+field_two = field_two.astype(int)
+chip_two = chip_two.astype(int)
 
-field_one = 7
-chip_one = 4
-field_two = 7
-chip_two = 1
-max_sig = 0.5#TODO
+# field_one = 7
+# chip_one = 4
+# field_two = 7
+# chip_two = 1
+# max_sig = 0.5#TODO
 
 max_deg = 2
 d_m_pm = 2
@@ -94,7 +94,7 @@ VVV = Table.read('/Users/amartinez/Desktop/PhD/Catalogs/VVV/b333/PMS/b333.dat', 
 
 gns1_coor = SkyCoord(ra = gns1_pm['ra1'],dec = gns1_pm['Dec1'],unit = 'degree',
                      frame = 'fk5', obstime = 'J2015.4301')
-rad = 100/3600
+rad = 200/3600
 
 delta_ra = (VVV['ra'] - ra_c) * np.cos(np.radians(dec_c))
 delta_dec = VVV['dec'] - dec_c
@@ -110,10 +110,10 @@ vvv_c = VVV[within_radius]
 vvv_c = filter_vvv_data(vvv_c,
                     pmRA = 'good',
                     pmDE = None,
-                    epm = 1.5,
+                    epm = 1,
                     ok = 'yes',
-                    max_Ks = 14,
-                    min_Ks = 16,
+                    max_Ks = None,
+                    min_Ks = None,
                     center = None
                     )
 
@@ -126,14 +126,15 @@ ax.scatter(gns1_pm['ra1'], gns1_pm['Dec1'], alpha = 0.1)
 # Moves coordinates to GNS1 obstime???
 tvvv = 2012.29578304
 # vvv_c['ra'] = vvv_c['ra'] + (t1-tvvv) * (vvv_c['pmRA']/1000.0)/3600.0 * np.cos(vvv_c['dec']*np.pi/180.)
-# vvv_c['dec'] = vvv_c['dec'] + (t1-tvvv) * (vvv_c['pmDEC']/1000.0)/3600.0
+vvv_c['ra'] = vvv_c['ra'] + (t1-tvvv) * (vvv_c['pmRA']/1000.0)/3600.0 
+vvv_c['dec'] = vvv_c['dec'] + (t1-tvvv) * (vvv_c['pmDEC']/1000.0)/3600.0
 vvv_coord = SkyCoord(ra = vvv_c['ra'], dec = vvv_c['dec'], unit = 'degree',
                       frame = 'icrs', obstime = 'J2012.29578304')
 # vvv_coord = SkyCoord(ra = vvv_c['ra'], dec = vvv_c['dec'], unit = 'degree',
 #                      frame = 'icrs', obstime = 'J2015.4301')
 
 
-max_sep = 0.05*u.arcsec
+max_sep = 0.1*u.arcsec#!!!
 
 idx,d2d,d3d = vvv_coord.match_to_catalog_sky(gns1_coor,nthneighbor=1)# ,nthneighbor=1 is for 1-to-1 matchsep_constraint = d2d < max_sep
 sep_constraint = d2d < max_sep
@@ -156,8 +157,8 @@ ax1.axvline(l_lim, ls = 'dashed', color = 'r', label = '$\pm$ %s$\sigma$'%(sig_c
 ax1.axvline(h_lim, ls = 'dashed', color = 'r')
 ax1.legend(loc = 4, fontsize = 12)
 
-vvv_match = vvv_match[~mask_m.mask]
-gns_vvv = gns_vvv[~mask_m.mask]
+vvv_match = vvv_match[np.logical_not(mask_m.mask)]
+gns_vvv = gns_vvv[np.logical_not(mask_m.mask)]
 ax1.set_title(f'{sig_cl}$\sigma$ Macthes= %s'%(len(vvv_match)))
 
 
@@ -174,15 +175,19 @@ vvv_match['pmb'] = vvv_gal.pm_b
 
 
 
-diff_pmx = gns_vvv['pmx'] + vvv_match['pml']
-diff_pmy = gns_vvv['pmy'] - vvv_match['pmb']
+diff_pmx = gns_vvv['pmx'] - vvv_match['pmRA']
+diff_pmy = gns_vvv['pmy'] - vvv_match['pmDEC']
+# diff_pmx = gns_vvv['pmx'] + vvv_match['pml']
+# diff_pmy = gns_vvv['pmy'] - vvv_match['pmb']
 
 
 
 mask_pmx, l_lim,h_lim = sigma_clip(diff_pmx, sigma=3, masked = True, return_bounds= True)
 mask_pmy, l_lim,h_lim = sigma_clip(diff_pmy, sigma=3, masked = True, return_bounds= True)
-diff_pmx_clip = diff_pmx[~mask_pmx.mask]
-diff_pmy_clip = diff_pmy[~mask_pmy.mask]
+
+mask_pm = np.logical_and(np.logical_not(mask_pmx.mask),np.logical_not(mask_pmy.mask))
+diff_pmx_clip = diff_pmx[mask_pm]
+diff_pmy_clip = diff_pmy[mask_pm]
 
 # %
 fig, (ax,ax1) = plt.subplots(1,2)

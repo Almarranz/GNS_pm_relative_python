@@ -52,9 +52,9 @@ plt.rcParams.update({'figure.max_open_warning': 0})# a warniing for matplot lib 
 # %%
 #%%
 field_one = 100#This field B6
-chip_one = 1
+chip_one = 2
 field_two = 20
-chip_two = 1
+chip_two = 2
 
 
 max_sig = 0.5

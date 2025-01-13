@@ -79,8 +79,8 @@ max_deg = 3
 d_m_pm = 2
 gns1_pm = Table.read(pm_folder + f'pm_ep1_f{field_one}c{chip_one}_ep2_f{field_two}c{chip_two}deg{max_deg}_dmax{d_m_pm}_sxy%.1f.txt'%(max_sig), format = 'ascii')
 
-Ks_lim = [12,14.5]
-# Ks_lim = [0,1000]
+# Ks_lim = [12,14.5]
+Ks_lim = [0,1000]
 Ks_mask = (gns1_pm['Ks1']>Ks_lim[0])&(gns1_pm['Ks1']<Ks_lim[1])
 gns1_pm = gns1_pm[Ks_mask]
 #Gaia comparison
@@ -136,7 +136,7 @@ gns1_coor = SkyCoord(ra = gns1_pm['ra1'],dec = gns1_pm['Dec1'],unit = 'degree',
 gaia_coord = SkyCoord(ra=gaia_good['ra'], dec=gaia_good['dec'],unit = 'degree',
                      frame = 'icrs', obstime = 'J2016.0')
 
-max_sep = 0.05*u.arcsec#!!!
+max_sep = 0.5*u.arcsec#!!!
 
 
 
